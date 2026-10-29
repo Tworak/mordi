@@ -1,8 +1,13 @@
-const { Client, GatewayIntentBits, Events, ActivityType, EmbedBuilder } = require('discord.js');
-const auth = require('./auth.json');
-const fs = require('fs');
-const mysql = require("mysql");
-require('dotenv').config();
+import { Client, GatewayIntentBits, Events, ActivityType, EmbedBuilder } from 'discord.js';
+const auth = JSON.parse(fs.readFileSync('./auth.json', 'utf-8'));
+import * as fs from 'fs';
+import * as mysql from 'mysql';
+import dotenv from 'dotenv';
+dotenv.config();
+
+// local imports
+import handlePresenceUpdate from './handlers/presence.js';
+
 
 // (A) SETTING UP DATABASE
 const HNAME = process.env.HOST;
@@ -21,7 +26,7 @@ const db = mysql.createConnection({
 // (C) TESTING DATABASE CONNECTION
 db.connect(err => {
 	if (err) { throw err; }
-	console.log(`connected to mysql on ${HNAME}`);
+	console.log(`Connected to mysql on ${HNAME}`);
 });
 
 
@@ -43,39 +48,7 @@ client.once(Events.ClientReady, readyClient => {
 	client.user.setActivity('some effin stuff', { type: ActivityType.Playing });
 });
 
-function handlePresenceUpdate(oldPresence, newPresence) {
-	const activities = newPresence?.activities || [];
-	if (activities.length === 0) return;
-
-	activities.forEach(activity => {
-		// Filter for Playing or Listening types
-		if (activity.type !== ActivityType.Playing && activity.type !== ActivityType.Listening) return;
-
-		const user = newPresence.member?.user;
-		if (!user || user.bot) return;
-
-		const sanitizeText = (text) => {
-			if (!text) return '';
-			// Remove problematic Unicode characters (emojis, special symbols)
-			return text.replace(/[\uF0-\uFFFF]/g, '');
-		};
-
-		// Prevent processing if no details or state available
-		const details = activity.details || '';
-		const status = activity.state || activity.name || 'Playing'; // Prioritize name for music bots
-		if (!details && !status) return;
-
-		// Deduplication: Avoid creating multiple records in a short timeframe per user
-		const safeTimestamp = new Date();
-		const query = `INSERT INTO malmveienbot (username, activity_details, status, timestamp) VALUES (?, ?, ?, ?)`;
-		const values = [user.username, sanitizeText(details), sanitizeText(status), safeTimestamp];
-
-		db.query(query, values, (err, results) => {
-			if (err) console.error("Error inserting into database:", err);
-			else console.log(`Logged ${user.username} - Playing: "${details || status}"`);
-		});
-	});
-}
+client.on(Events.GuildPresenceUpdate, handlePresenceUpdate);
 
 /*
 // The 'message' event is now 'messageCreate'

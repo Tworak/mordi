@@ -1,2 +1,1 @@
-# discord-mordi
 # mordi

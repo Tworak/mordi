@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // local imports
-import handlePresenceUpdate from './handlers/presence.js';
+import handlePresenceUpdate from './src/handlers/presence.js';
 
 
 // (A) SETTING UP DATABASE
